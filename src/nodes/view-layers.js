@@ -5,6 +5,7 @@ $(function(){
   var template = 
     '<div class="layers" style="z-index:1" />'+
     '<div class="info" style="position:absolute; left:0; bottom:0; z-index:2">'+
+      '<div>deprecated, try image/layers instead</div>'+
       '<ul class="list" style="list-style-type:none; margin:0; padding:0;"></ul>'+
       '<button class="refresh">refresh</button>'+
     '</div>';
@@ -60,7 +61,7 @@ $(function(){
         if (!this.visible[id]) {
           var vis = {};
           this.visible[id] = vis;
-          vis.nativeView = this.model.graph.get("nodes").get(id).view.Native;
+          vis.nativeView = this.model.parentGraph.get("nodes").get(id).view.Native;
           vis.original = $(event.target).data("canvas");
           vis.copy = document.createElement("canvas");
           vis.copy.width = vis.original.width;

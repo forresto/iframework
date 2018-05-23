@@ -30,10 +30,10 @@ $(function(){
     },
     resetSizes: false,
     inputrect: function (rect) {
-      this._x = rect.x;
-      this._y = rect.y;
-      this._width = rect.width;
-      this._height = rect.height;
+      this._x = rect[0];
+      this._y = rect[1];
+      this._width = rect[2];
+      this._height = rect[3];
       this.resetSizes = true;
     },
     inputwidth: function(w){
@@ -60,6 +60,7 @@ $(function(){
           this.setSizes();
           this.resetSizes = false;
         }
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.context.drawImage(this._image, this._x, this._y, this._width, this._height, 0, 0, this._width, this._height);
         this.inputsend();
       }
@@ -70,8 +71,8 @@ $(function(){
         description: "image to crop and size"
       },
       rect: {
-        type: "f4",
-        description: "a rectangle object containing x, y, width, height"
+        type: "array:f4",
+        description: "a rectangle array with x, y, width, height"
       },
       x: {
         type: "int",

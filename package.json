@@ -2,7 +2,7 @@
   "name": "meemoo-iframework",
   "title": "Meemoo Iframework",
   "description": "hackable web apps",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "homepage": "http://meemoo.org/",
   "author": {
     "name": "Forrest Oliphant",
@@ -42,6 +42,8 @@
     "grunt-contrib-watch": "~0.3.1"
   },
   "scripts": {
-    "test": "./node_modules/.bin/grunt test"
+    "test": "grunt test",
+    "build": "grunt build",
+    "start": "grunt dev"
   }
 }

@@ -20,7 +20,10 @@ module.exports = function() {
           'libs/backbone.js',
           'libs/backbone.localStorage.js',
           'libs/mousetrap.js',
-          // 'libs/jquery.ui.touch-punch.js',
+          'libs/spectrum/spectrum.js',
+          'libs/jquery.ui.touch-punch.js',
+          'libs/jquery.ui.touch-punch.js',
+          'libs/js-expression-eval/parser.js',
           // Iframework
           'src/iframework.js',
           'src/iframework-utils.js',
@@ -53,6 +56,7 @@ module.exports = function() {
           'src/plugins/source.js',
           'src/plugins/library.js',
           'src/plugins/images.js',
+          // 'src/plugins/towtruck.js',
           // All Iframework loaded
           'src/iframework-last.js'
         ],
@@ -76,7 +80,7 @@ module.exports = function() {
         browser: true,
         sub: true,
         globals: {
-          "console": true,
+          // "console": true,
           "_": true,
           "$": true,
           "jQuery": true,
@@ -92,6 +96,10 @@ module.exports = function() {
       }
     },
     connect: {
+      options : {
+        port : 8000,
+        hostname : '*' // available from ipaddress:8000 on same network (or name.local:8000)
+      },
       uses_defaults: {}
     },
     watch: {

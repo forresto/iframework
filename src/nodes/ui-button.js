@@ -23,6 +23,12 @@ $(function(){
     },
     inputbang: function(){
       this.send("bang", "!");
+      this.$(".button").addClass("active");
+
+      var self = this;
+      _.delay(function(){
+        self.$(".button").removeClass("active");
+      }, 100);
       return false;
     },
     inputlabel: function (label) {
@@ -34,6 +40,12 @@ $(function(){
         label += " ("+this._key+")";
       }
       this.$(".button").text(label);
+    },
+    inputcolor: function (color) {
+      this.$(".button").css("color", color);
+    },
+    inputbackground: function (color) {
+      this.$(".button").css("background-color", color);
     },
     inputkey: function(key){
       // Unbind the old 
@@ -66,6 +78,16 @@ $(function(){
       label: {
         type: "string",
         description: "label for button",
+        "default": ""
+      },
+      color: {
+        type: "color",
+        description: "color of button text",
+        "default": ""
+      },
+      background: {
+        type: "color",
+        description: "color of button background",
         "default": ""
       },
       key: {

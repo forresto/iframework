@@ -6,26 +6,11 @@ $(function(){
       '<span class="label"><%= name %></span>'+
     '</div>'+
     '<span class="plugend plugend-in plugend-<%= type_class %>"></span>';
-        
-  // var popupTemplate =
-  //   '<div class="edge-edit">'+
-  //     '<button class="close">close</button>'+
-  //     '<h2><%= name %> (<%= type %>)</h2>'+
-  //     '<p><%= description %></p>'+
-  //   '</div>';
-
-  // var edgeEditTemplate =
-  //   '<div class="edge-edit-item" id="<%= model.cid %>">'+
-  //     '<span><%= label() %></span>'+
-  //     '<button class="disconnect" type="button">disconnect</button>'+
-  //   '</div>';
 
   Iframework.PortInView = Iframework.PortView.extend({
     tagName: "div",
     className: "port",
     portInTemplate: _.template(portInTemplate),
-    // popupTemplate: _.template(popupTemplate),
-    // edgeEditTemplate: _.template(edgeEditTemplate),
     events: {
       "mousedown":                   "highlightEdge",
       "click .hole":                 "clickhole",
@@ -38,6 +23,7 @@ $(function(){
       "drop":                        "drop",
       "click .disconnect":           "disconnect",
       "submit .manualinput":         "manualinput"
+      // "click .publish-port":         "publishPort"
     },
     render: function () {
       this.$el.html( this.portInTemplate(this.model.toJSON()) );
@@ -91,7 +77,7 @@ $(function(){
     },
     dragstart: function (event, ui) {
       // Add a mask so that iframes don't steal mouse
-      this.model.node.graph.view.maskFrames();
+      this.model.node.parentGraph.view.maskFrames();
       
       // Highlight matching ins or outs
       $("div.ports-"+(this.model.isIn ? "out" : "in")+" span.hole")
@@ -110,8 +96,8 @@ $(function(){
     },
     drag: function (event, ui) {
       if (Iframework.edgePreview) {
-        var dragX = ui.offset.left + $('.graph').scrollLeft();
-        var dragY = ui.offset.top + 8 + $('.graph').scrollTop();
+        var dragX = ui.offset.left + Iframework.shownGraph.view.el.scrollLeft;
+        var dragY = ui.offset.top + 8 + Iframework.shownGraph.view.el.scrollTop;
         var thisX = this.portOffsetLeft();
         var thisY = this.portOffsetTop();
         
@@ -130,7 +116,7 @@ $(function(){
     },
     dragstop: function (event, ui) {
       // Remove iframe masks
-      this.model.node.graph.view.unmaskFrames();
+      this.model.node.parentGraph.view.unmaskFrames();
 
       $(".hole").removeClass("fade highlight");
       
@@ -156,14 +142,14 @@ $(function(){
         var source = (this.model.isIn ? from : to);
         var target = (this.model.isIn ? to : from);
         var edge = new Iframework.Edge({
-          source: [source.node.get("id"), source.get("name")],
-          target: [target.node.get("id"), target.get("name")]
+          source: [source.node.id, source.id],
+          target: [target.node.id, target.id],
+          parentGraph: this.model.parentNode.parentGraph
         });
-        edge.graph = this.model.graph;
         if (Iframework.edgePreview) {
           edge._color = Iframework.edgePreview._color;
         }
-        if (edge.graph.addEdge(edge)){
+        if (edge.parentGraph.addEdge(edge)){
           edge.connect();
         }
       }
@@ -186,7 +172,7 @@ $(function(){
     },
     unplugstart: function (event, ui) {
       // Add a mask so that iframes don't steal mouse
-      this.model.node.graph.view.maskFrames();
+      this.model.node.parentGraph.view.maskFrames();
 
       // Find top connected wire
       var lastConnected = this.topConnectedEdge();
@@ -217,8 +203,8 @@ $(function(){
     },
     unplugdrag: function (event, ui) {
       if (Iframework.edgePreview && this.unpluggingEdge) {
-        var dragX = ui.offset.left + $('.graph').scrollLeft();
-        var dragY = ui.offset.top + 6 + $('.graph').scrollTop();
+        var dragX = ui.offset.left + Iframework.shownGraph.view.el.scrollLeft;
+        var dragY = ui.offset.top + 6 + Iframework.shownGraph.view.el.scrollTop;
         var thatPortView = this.model.isIn ? this.unpluggingEdge.Source.view : this.unpluggingEdge.Target.view;
         var thatX = thatPortView.portOffsetLeft();
         var thatY = thatPortView.portOffsetTop();
@@ -238,7 +224,7 @@ $(function(){
     },
     unplugstop: function (event, ui) {
       if (this.armDelete && this.unpluggingEdge) {
-        this.model.graph.removeEdge(this.unpluggingEdge);
+        this.model.parentGraph.removeEdge(this.unpluggingEdge);
       } else {
         this.$(".plugend").show();
         this.unpluggingEdge.view.undim();
@@ -257,48 +243,13 @@ $(function(){
       // Show connected edges editor
       var isIn = this.model.isIn;
       var portName = this.model.get("name");
-  
-      if ( Iframework.selectedPort && (isIn !== Iframework.selectedPort.isIn) ) {
-        // Connect
-        var edge;
-        if (isIn) {
-          edge = new Iframework.Edge({
-            source: [Iframework.selectedPort.node.get("id"), Iframework.selectedPort.get("name")],
-            target: [this.model.node.get("id"), this.model.get("name")]
-          });
-        } else {
-          edge = new Iframework.Edge({
-            source: [this.model.node.get("id"), this.model.get("name")],
-            target: [Iframework.selectedPort.node.get("id"), Iframework.selectedPort.get("name")]
-          });
-        }
-        edge.graph = Iframework.shownGraph;
-        if (edge.graph.addEdge(edge)){
-          edge.connect();
-        }
-        // Tap-connect edge preview
-        if ( Iframework.edgePreview ) {
-          Iframework.shownGraph.view.$(".edges").children(".preview").remove();
-          Iframework.edgePreview = undefined;
-        }
-        // Don't show popup
-        Iframework.selectedPort = null;
-        return;
-      } 
       
-      // var popupEl = $('<div class="edge-edit" />');
       var popupEl = this.popupTemplate(this.model.toJSON());
       popupEl = $(popupEl);
       this.$el.append(popupEl);
 
       // Close button
       popupEl.children("button.close")
-        .button({
-          icons: {
-            primary: "icon-cancel"
-          },
-          text: false
-        })
         .click(function(){
           $('div.edge-edit').remove();
           Iframework.selectedPort = null;
@@ -310,26 +261,86 @@ $(function(){
       var inputForm = $('<form />')
         .attr({
           "id": this.model.node.id + "_" + this.model.get("name"),
-          "class": "manualinput"
+          "class": "manualinput",
+          "novalidate": ""
         });
       if (typeabbr === "int" || typeabbr === "num" || typeabbr === "flo" ) {
         showForm = true;
         inputForm.append(
           $("<input />").attr({
-            "type": "number",
-            "min": hole.data("min"),
-            "max": hole.data("max"),
-            "step": "any",
-            "value": this.model.node.get("state")[this.model.get("name")]
+            // "type": "number",
+            // "min": hole.data("min"),
+            // "max": hole.data("max"),
+            // "step": "any",
+            "value": this.model.node.get("state")[this.model.get("name")],
+            "title": 'use equations like "=x*100" to change all incoming values'
           })
         );
-      } else if (typeabbr === "col" || typeabbr === "str") {
+      } else if (typeabbr === "col") {
+        // Use the spectrum event instead of standard form submit
+        showForm = true;
+        var color = this.model.node.get("state")[this.model.get("name")];
+        var input = $("<input />")
+          .attr({
+            "type": "text",
+            "maxlength": 140,
+            "value": color,
+            "style": "width: 90%"
+          });
+        inputForm.append( input );
+        // Has to be after added to page
+        var self = this;
+        input
+          .spectrum({
+            // color: color,
+            showInitial: true,
+            showInput: true,
+            showAlpha: true,
+            showPalette: true,
+            palette: [
+              Iframework.wireColors,
+              ["red", "green", "blue", "purple", "cyan", "magenta", "yellow"],
+              ["black", "#333", "#666", "#999", "#AAA", "#CCC", "white"]
+            ],
+            showSelectionPalette: true,
+            localStorageKey: "iframework.settings.colorPalette",
+            change: function(color) {
+              // TODO change to toString when https://github.com/bgrins/spectrum/issues/92 fixed
+              var str = color.toRgbString(); 
+              input.val( str );
+              self.model.node.receive(portName, str);
+              self.model.node.setValue(portName, str);
+            },
+            hide: function(color) {
+              input.show();
+            },
+            beforeShow: function () {
+              input.spectrum("set", input.val());
+              input.hide();
+            }
+          })
+          .show(); // Unhide
+      } else if (typeabbr === "str") {
         showForm = true;
         inputForm.append(
           $("<input />").attr({
             "type": "text",
             "maxlength": hole.data("max"),
             "value": this.model.node.get("state")[this.model.get("name")]
+          })
+        );
+      } else if (typeabbr === "arr") {
+        showForm = true;
+        var a = this.model.node.get("state")[this.model.get("name")];
+        if (Iframework.util.type(a) !== "array") { a = []; }
+        var s = "";
+        for (var i=0; i<a.length; i++) {
+          s += (i>0 ? ", " : "") + a[i];
+        }
+        inputForm.append(
+          $("<input />").attr({
+            "type": "text",
+            "value": s
           })
         );
       } else if (typeabbr === "boo") {
@@ -350,17 +361,10 @@ $(function(){
       if (showForm) {
         inputForm.append(
           $("<button></button>")
-            .html("send")
             .attr({
               "type": "submit",
-              "class": "send",
+              "class": "send icon-ok",
               "title": "send value to module"
-            })
-            .button({
-              icons: {
-                primary: "icon-ok"
-              },
-              text: false
             })
         );
         popupEl.append(inputForm);
@@ -378,12 +382,6 @@ $(function(){
           var edgeEditEl = this.edgeEditTemplate(edge.view);
           popupEl.append(edgeEditEl);
         }, this);
-        $(".disconnect").button({
-          icons: {
-            primary: "icon-scissors"
-          },
-          text: false
-        });
       }
 
       // This input's options
@@ -399,6 +397,9 @@ $(function(){
     },
     manualinput: function (event) {
       var inputname = this.model.get("name");
+      var type = this.model.get("type");
+      var typeabbr = type.substring(0,3);
+
       var val;
       var saveToState = true;
       if (this.$(".manualinput").children("input")){
@@ -411,29 +412,39 @@ $(function(){
           val = false;
         }
       }
-      if (this.model.get("type") === "int") {
-        val = parseInt(val, 10);
+      if (type === "int" || type === "number" || type === "float") {
+        if (typeof val === "string" && val.toString().substr(0,1)==="=") {
+          // Try to parse equation
+        } else if (type === "int") {
+          val = parseInt(val, 10);
+        } else if (type === "number" || type === "float") {
+          val = parseFloat(val);
+        }
       }
-      if (this.model.get("type") === "number" || this.model.get("type") === "float") {
-        val = parseFloat(val);
+      if (typeabbr === "arr") {
+        try {
+          val = JSON.parse( "[" + val + "]" );
+        } catch (error) {
+          // boo
+          return false;
+        }
       }
       if (val === undefined) {
         // Bang
         val = "!";
         saveToState = false;
       }
-      this.model.node.receive(inputname, val);
       if (saveToState) {
         this.model.node.setValue(inputname, val);
       }
-      // $('div.edge-edit').remove();
+      this.model.node.receive(inputname, val);
       return false;
     },
     disconnect: function (event) {
       //HACK
-      var edge = this.model.graph.get("edges").getByCid( $(event.target).parents(".edge-edit-item").attr("id") );
+      var edge = this.model.parentGraph.get("edges").getByCid( $(event.target).parents(".edge-edit-item").attr("id") );
       if (edge) {
-        this.model.graph.removeEdge(edge);
+        this.model.parentGraph.removeEdge(edge);
       }
       $('div.edge-edit').remove();
       Iframework.selectedPort = null;
@@ -441,29 +452,11 @@ $(function(){
       // Don't bubble
       event.stopPropagation();
     },
-    portOffsetLeft: function () {
-      var holeoffset = this.$('.hole').offset();
-      if (holeoffset) {
-        // HACK
-        return holeoffset.left + 7 + $('.graph').scrollLeft();
-      } else {
-        return 0;
-      }
-    },
-    portOffsetTop: function () {
-      var holeoffset = this.$('.hole').offset();
-      if (holeoffset) {
-        // HACK
-        return holeoffset.top + 10 + $('.graph').scrollTop();
-      } else {
-        return 0;
-      }
-    },
     _relatedEdges: null,
     relatedEdges: function () {
       // Resets to null on dis/connect
       if ( this._relatedEdges === null ) {
-        this._relatedEdges = this.model.graph.get("edges").filter( function (edge) {
+        this._relatedEdges = this.model.parentGraph.get("edges").filter( function (edge) {
           return ( edge.Source === this.model || edge.Target === this.model );
         }, this);
         // Toggle plugends
@@ -496,6 +489,27 @@ $(function(){
       setTimeout(function(){
         plugend.removeClass("highlight");
       }, 1000);
+    },
+    publishPort: function () {
+      // Make breakout
+      var breakout = this.model.parentNode.parentGraph.addNode({
+        src: "meemoo:subgraph/input",
+        x: 100,
+        y: 100,
+        w: 80,
+        h: 60,
+        state: {
+          label: this.model.id
+        },
+        parentGraph: this.model.parentNode.parentGraph
+      });
+      // Connect edge
+      var edge = new Iframework.Edge({
+        source: [breakout.id, "data"], 
+        target: [this.model.parentNode.id, this.model.id],
+        parentGraph: this.model.parentNode.parentGraph
+      });
+      this.model.parentNode.parentGraph.addEdge( edge );
     }
 
   });

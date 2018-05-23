@@ -38,19 +38,12 @@ $(function(){
       _.defer(function(){
         self.trigger("send:"+name, value);
       });
-
     },
     receive: function (name, value) {
       // The listener that hits this is added in the edge
       if (this.view.Native) {
         this.view.Native.receive(name, value);
       }
-
-      // for (var name in message) {
-      //   if (this.view.Native) {
-      //     this.view.Native.receive(name, message[name]);
-      //   }
-      // }
     },
     infoLoaded: function (info) {
       this.info = info;
@@ -62,20 +55,20 @@ $(function(){
       var state = this.get("state");
       if (state && this.view.Native){
         for (var name in state) {
-          if (this.view.Native["input"+name]){
-            this.view.Native["input"+name](state[name]);
-          } else {
-            this.view.Native["_"+name] = state[name];
+          var eqSet = this.setEquation(name, state[name]);
+          if (!eqSet) {
+            this.receive(name, state[name]);
           }
         }
       }
     },
     addInput: function (info) {
-      // Set id to name
-      info.id = info.name;
+      if (info.id === undefined) {
+        info.id = info.name;
+      }
       info.parentNode = this;
       // Name must be unique
-      var replace = this.Inputs.get(info.name);
+      var replace = this.Inputs.get(info.id);
       if (replace) {
         replace.set(info);
         return;
@@ -83,7 +76,7 @@ $(function(){
       var newPort = new Iframework.PortIn(info);
       newPort.isIn = true;
       newPort.node = this;
-      newPort.graph = this.graph;
+      newPort.parentGraph = this.parentGraph;
       this.Inputs.add(newPort);
       if (this.view) {
         this.view.addInput(newPort);
@@ -93,13 +86,15 @@ $(function(){
       if ( info.hasOwnProperty("default") && info["default"] !== "" && !currentState.hasOwnProperty(info.name) ) {
         currentState[info.name] = info["default"];
       }
+      return newPort;
     },
     addOutput: function (info) {
-      // Set id to name
-      info.id = info.name;
+      if (info.id === undefined) {
+        info.id = info.name;
+      }
       info.parentNode = this;
       // Name must be unique
-      var replace = this.Outputs.get(info.name);
+      var replace = this.Outputs.get(info.id);
       if (replace) {
         replace.set(info);
         return;
@@ -107,22 +102,23 @@ $(function(){
       var newPort = new Iframework.PortOut(info);
       newPort.isIn = false;
       newPort.node = this;
-      newPort.graph = this.graph;
+      newPort.parentGraph = this.parentGraph;
       this.Outputs.add(newPort);
       if (this.view) {
         this.view.addOutput(newPort);
       }
+      return newPort;
     },
     nodeChanged: function () {
-      if (this.graph) {
-        this.graph.trigger("change");
+      if (this.parentGraph) {
+        this.parentGraph.trigger("change");
       }
     },
     remove: function (fromView) {
       if (fromView) {
         // Called from NodeBoxView.removeModel
         // User initiated undo, so make it undoable
-        this.graph.removeNode(this);
+        this.parentGraph.removeNode(this);
       } else {
         // Called from Graph.remove
         // Just remove it
@@ -133,16 +129,31 @@ $(function(){
     },
     setValues: function(info) {
       for (var name in info) {
-        this.get("state")[name] = info[name];
+        this.setValue(name, info[name]);
       }
       this.nodeChanged();
     },
     setValue: function(name, value) {
+      this.setEquation(name, value);
       this.get("state")[name] = value;
       this.nodeChanged();
     },
+    setEquation: function (name, value) {
+      if (!this.view.Native) { return; }
+      var input = this.Inputs.get(name);
+      if (!input) { return; }
+      var type = input.get("type");
+      if ( type === "int" || type === "float" || type === "number" ) {
+        if (value && value.toString().substr(0,1) === "=") {
+          this.view.Native.setEquation(name, value.substr(1));
+          return true;
+        } else {
+          this.view.Native.setEquation(name);
+        }
+      }
+    },
     toString: function() {
-      if (!!this.info) {
+      if (this.info) {
         return "Native node "+this.get("id")+": "+this.info.title;
       } else {
         return "Native node "+this.get("id");

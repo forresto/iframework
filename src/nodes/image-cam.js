@@ -62,7 +62,7 @@ $(function(){
         window.URL = window.webkitURL || window.msURL || window.oURL || false;
       }
       if ( !navigator.getUserMedia ) {
-        navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || false;
+        navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || null;
       }
       if ( !navigator.getUserMedia ) {
         this.$(".startcamera")
@@ -89,29 +89,25 @@ $(function(){
         });
       }
 
-      if (navigator.getUserMedia) {
-        navigator.getUserMedia( { video: true, audio: false }, function(stream){
-          self._stream = stream;
-          if (navigator.mozGetUserMedia) {
-            // HACK for ff
-            self._video.mozSrcObject = stream;
-            self._video.play();
-          } else {
-            if (window.URL.createObjectURL) {
-              self._video.src = window.URL.createObjectURL(stream);
-            } else {
-              self._video.src = stream;
+      if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({video: true, audio: false})
+          .then(function(mediaStream) {
+            try {
+              self._video.srcObject = mediaStream;
+            } catch (error) {
+              self._video.src = URL.createObjectURL(mediaStream);
             }
-          }
-          // Sets up frame draw ms
-          self.inputfps(self._fps);
-          self._placeholderWarning = null;
-          self._camStarted = true;
-          self._triggerRedraw = true;
-        }, function(error){
-          self._placeholderWarning = "(denied webcam access)";
-          self.stopCam();
-        });
+            // Sets up frame draw ms
+            self.inputfps(self._fps);
+            self._placeholderWarning = null;
+            self._camStarted = true;
+            self._triggerRedraw = true;
+          })
+          .catch(function() {
+            self._placeholderWarning = "(denied webcam access)";
+            self.stopCam();
+          })
       } else {
         this._placeholderWarning = "(no getUserMedia webcam)";
         self.stopCam();
@@ -153,6 +149,15 @@ $(function(){
       }
     },
     _showOnionskin: false,
+    inputshowOnionskin: function (boo) {
+      this.$(".showonionskin").prop('checked', boo);
+      this._showOnionskin = boo;
+      if (boo) {
+        $(this.onionskin).show();
+      } else {
+        $(this.onionskin).hide();
+      }
+    },
     changeShowOnionskin: function(event) {
       // Show last frame as overlay
       if (event.target.checked) {
@@ -163,25 +168,6 @@ $(function(){
         $(this.onionskin).hide();
       }
     },
-    // setupPlaceholderVideo: function(){
-    //   // Video file instead of webcam
-    //   $(this._video)
-    //     .attr({
-    //       "autoplay": "true",
-    //       "loop": "true"
-    //     })
-    //     .html(
-    //       '<source src="img/no-webcam.mp4" type="video/mp4" />'+
-    //       '<source src="img/no-webcam.webm" type="video/webm" />'
-    //     )
-    //     .on('ended', function(){
-    //       this.play();
-    //     });
-    //   // Sets up frame draw ms
-    //   this.inputfps(10);
-    //   this._camStarted = true;
-    //   this._triggerRedraw = true;
-    // },
     setSizes: function(){
       var input;
       if (this._video) {
@@ -383,10 +369,14 @@ $(function(){
         max: 30,
         "default": 20
       },
-      onionskin: {
-        type: "image",
-        description: "onionskin image"
+      showOnionskin: {
+        type: "boolean",
+        description: "show/hide onionskin"
       },
+      // onionskin: {
+      //   type: "boolean",
+      //   description: "default onionskin"
+      // },
       start: {
         type: "bang",
         description: "start the camera"
